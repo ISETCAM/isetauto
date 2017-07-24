@@ -1,39 +1,45 @@
-%%% RenderToolbox3 Copyright (c) 2012-2013 The RenderToolbox3 Team.
-%%% About Us://github.com/DavidBrainard/RenderToolbox3/wiki/About-Us
-%%% RenderToolbox3 is released under the MIT License.  See LICENSE.txt.
+%% Compare lens renderings of different cars
+%
+% 
+% Henryk Blasinski, SCIEN Stanford, 2017
 
 %% Scene description
 
-% Henryk Blasinski
-close all;
-clear all;
-clc;
-
+% Initialize ISET related variables
 ieInit;
-constants;
+
+% Sets up related to the car renderings
+nnConstants;
 
 %% Set-up RenderToolbox4
 
-hints.imageWidth = 640;
-hints.imageHeight = 480;
-hints.recipeName = 'Car-Different-Lenses'; % Name of the render
-hints.renderer = 'PBRT'; % We're only using PBRT right now
-hints.copyResources = 1;
-hints.isParallel = false;
+hints = nnHintsInit;
 
-% Change the docker container
-hints.batchRenderStrategy = RtbAssimpStrategy(hints);
-
-hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerMoveCar;
-hints.batchRenderStrategy.converter = RtbAssimpPBRTConverter(hints);
-hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
-hints.batchRenderStrategy.converter.rewriteMeshData = false;
-hints.batchRenderStrategy.renderer = RtbPBRTRenderer(hints);
-hints.batchRenderStrategy.renderer.pbrt.dockerImage = 'vistalab/pbrt-v2-spectral';
-
+% hints.imageWidth = 640;
+% hints.imageHeight = 480;
+% hints.recipeName = 'Car-Different-Lenses'; % Name of the render
+% hints.renderer = 'PBRT'; % We're only using PBRT right now
+% hints.copyResources = 1;
+% hints.isParallel = false;
+% 
+% % Change the docker container
+% hints.batchRenderStrategy = RtbAssimpStrategy(hints);
+% 
+% hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerMoveCar;
+% hints.batchRenderStrategy.converter = RtbAssimpPBRTConverter(hints);
+% hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
+% hints.batchRenderStrategy.converter.rewriteMeshData = false;
+% hints.batchRenderStrategy.renderer = RtbPBRTRenderer(hints);
+% hints.batchRenderStrategy.renderer.pbrt.dockerImage = 'vistalab/pbrt-v2-spectral';
+% 
 
 
 %% Simulation parameters
+%
+% Negative z is up.
+% Scene is about 200x200m, units are mm.
+% However we should specify meters, as they are automatically converted to
+% mm in remodellers.
 
 cameraType = {'pinhole','lens','lens'}; 
 lensType = {'tessar.22deg.6.0mm','tessar.22deg.6.0mm','2el.XXdeg.6.0mm'};
@@ -49,11 +55,6 @@ chrAber = {'false','true'};
 
 % diffraction = {'false','true'};
 % chrAber = {'false','true'};
-
-% Negative z is up.
-% Scene is about 200x200m, units are mm.
-% However we should specify meters, as they are automatically converted to
-% mm in remodellers.
 
 pixelSamples = 128;
 shadowDirection = [-0.5 -1 1;];
@@ -73,23 +74,28 @@ carOrientation = [30];
 maxCars = 1;
 maxCities = 1;
 
+% These are the variable names used in the conditionsFile.  See
+%  https://github.com/RenderToolbox/RenderToolbox4/wiki/Conditions-File-
+% Some of these are standard.  Some are selected here.
 names = {'imageName','cameraType','lensType','mode','pixelSamples','filmDist','filmDiag','cameraPosition',...
     'shadowDirection','microlensDim','cameraLookAt','fNumber','carPosition','carOrientation','fog',...
     'diffraction','chromaticAberration','cameraPan','cameraTilt','cameraRoll'};
 
 %% Check
-assert(length(cameraType) == length(lensType));
-assert(length(cameraType) == length(microlens));
+assert(length(cameraType)  == length(lensType));
+assert(length(cameraType)  == length(microlens));
 assert(length(diffraction) == length(chrAber));
 
 
-%% Choose renderer options.
-
+%% Choose renderer options 
+%
+% Select the working folder and copy critical files there
+% Not sure why the lens file is not handled automatically.  This caused a
+% problem for me with the calibration rendering, too. (BW).
 
 resourceFolder = rtbWorkingFolder('folderName','resources',...
     'rendererSpecific',false,...
     'hints',hints);
-
 
 % Copy resources
 lensFiles = fullfile(lensDir,strcat(lensType,'.dat'));
@@ -109,10 +115,10 @@ rtbWriteSpectrumFile(wave,d65,fullfile(resourceFolder,'D65.spd'));
 
 %% Choose files to render
 sceneID = 1;
+
 for cityId=1:maxCities
     sceneFile = sprintf('City_%i.obj',cityId);
     parentSceneFile = fullfile(assetDir,'City',sceneFile);
-    
     
     [cityScene, elements] = mexximpCleanImport(parentSceneFile,...
         'ignoreRootTransform',true,...
@@ -125,11 +131,13 @@ for cityId=1:maxCities
         'flipWindingOrder',true,...
         'workingFolder',resourceFolder);
     
+    % Defines valid ranges for the car positions
     carPosition = zeros(nCarPositions,3);
     for i=2:nCarPositions
         carPosition(i,:) = drawCarPosition(cityId);
     end
-        
+    
+    % There seem to be 1 car and 1 city
     for carId=1:maxCars
         carFile = sprintf('Car_%i.obj',carId);
         parentSceneFile = fullfile(assetDir,car2directory{carId},carFile);
@@ -148,11 +156,16 @@ for cityId=1:maxCities
             'insertTransform',mexximpTranslate([0 0 0]),...
             'cleanupTransform',mexximpTranslate([0 0 0]));
         
+
         for ap=1:nCarPositions;
             
             for lt=1:length(lensType)
+                
+                % It seems like we get a clean copy of the Conditions.txt file
+                % here?  Later, we write it out.
                 conditionsFile = fullfile(resourceFolder,'Conditions.txt');
 
+                % This is one place where names is used.  
                 values = cell(1,numel(names));
                 cntr = 1;
                 
@@ -164,29 +177,37 @@ for cityId=1:maxCities
                 filmDistanceVec = zeros(prod(sz),1);
                 cameraDistanceVec = zeros(prod(sz),1);
                 
+                % I think this can be an ndgrid
+                % I think what is being built here is
+                % cameraPosition, filmDistance and cameraDistance
                 for cdef=1:length(cameraDefocus)
                     for ch=1:length(cameraHeight)
-                        for cd=1:length(cameraDistance)
+                        for cdd=1:length(cameraDistance)
                             for co=1:length(cameraOrientation)
                                 
-                                loc = sub2ind(sz,cdef,ch,cd,co);
+                                % This would be the counter variable
+                                loc = sub2ind(sz,cdef,ch,cdd,co);
                                 
-                                cx = cameraDistance(cd)*sind(cameraOrientation(co));
-                                cy = cameraDistance(cd)*cosd(cameraOrientation(co));
+                                cx = cameraDistance(cdd)*sind(cameraOrientation(co));
+                                cy = cameraDistance(cdd)*cosd(cameraOrientation(co));
                                 
                                 cameraPosition(loc,1) = cx + carPosition(ap,1);
                                 cameraPosition(loc,2) = cy + carPosition(ap,2);
                                 cameraPosition(loc,3) = cameraHeight(ch);
                                 
-                                filmDistanceVec(loc) = focusLens(lensFile,(max(cameraDistance(cd)+cameraDefocus(cdef),0.1))*1000);
-                                cameraDistanceVec(loc) = cameraDistance(cd);
+                                filmDistanceVec(loc) = focusLens(lensFile,(max(cameraDistance(cdd)+cameraDefocus(cdef),0.1))*1000);
+                                cameraDistanceVec(loc) = cameraDistance(cdd);
                                 
                             end
                         end
                     end
                 end
                 
-                
+                % This is building up the values used for the Conditions file.
+                %
+                % We might, again, do this with a ndgrid() on the lengths and do
+                % a single loop all the way through.  These multiple nested
+                % loops are very hard to understand and read.
                 for ao=1:length(carOrientation);
                     for p=1:size(cameraPosition,1)
                         for s=1:size(shadowDirection,1)
@@ -205,6 +226,8 @@ for cityId=1:maxCities
                                                         currentFilmDistance = filmDistanceVec(p);
                                                     end
                                                     
+                                                    % ap is the car position
+                                                    % index
                                                     cameraLookAt = [carPosition(ap,1:2) cameraHeight];
                                                     
                                                     fName = sprintf('%05i_city_%02i_car_%02i_%s_%s_%s_fN_%.2f_diff_%s_chr_%s',...
@@ -247,26 +270,27 @@ for cityId=1:maxCities
                         end
                     end
                 end
-                
-                
-                
+                   
+                % Here is names and the values for the conditions file.
                 rtbWriteConditionsFile(conditionsFile,names,values);
                 
                 % Generate files and render
                 % We parallelize scene generation, not the rendering because PBRT
                 % automatically scales the number of processes to equal the nubmer of
                 % cores.
-                %%
-                
-                
+                %
                 nativeSceneFiles = rtbMakeSceneFiles(scene, 'hints', hints,...
                     'conditionsFile',conditionsFile);
                                
                 radianceDataFiles = rtbBatchRender(nativeSceneFiles, 'hints', hints);
-                
-                
-                
+               
+                % We aren't saving the radianceDataFiles for all the conditions.
+                %  This means we have to rerun too many times.
+                % load('radianceDataFiles');
                 for i=1:length(radianceDataFiles)
+                    % chdir(fullfile(nnGenRootPath,'local'));
+                    % save('radianceDataFiles','radianceDataFiles');
+
                     radianceData = load(radianceDataFiles{i});
                     
                     %% Create an oi
@@ -274,7 +298,7 @@ for cityId=1:maxCities
                     oiParams.filmDistance = 10;
                     oiParams.filmDiag = 20;
                     
-                    [path, label] = fileparts(radianceDataFiles{i});
+                    [~, label] = fileparts(radianceDataFiles{i});
                                                             
                     oi = buildOi(radianceData.multispectralImage, [], oiParams);
                     oi = oiSet(oi,'name',label);
@@ -287,4 +311,13 @@ for cityId=1:maxCities
         end
     end
 end
+
+%% Save out the oi if you like
+chdir(fullfile(nnGenRootPath,'local'));
+oiNames = vcGetObjectNames('oi');
+for ii=1:length(oiNames)
+    thisOI = ieGetObject('oi',ii);
+    save(oiNames{ii},'thisOI');
+end
+
 

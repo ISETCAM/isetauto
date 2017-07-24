@@ -1,9 +1,10 @@
 function pos = drawCarPosition(city)
-
-% This is a helper function that defines the allowable car positions for
+% A helper function that defines the allowable car positions for
 % each city.
 %
 % Copyright, Henryk Blasinski 2017
+
+%% Three possible cities.  A name for each would be good
 
 switch city
     case 1
@@ -21,7 +22,7 @@ switch city
 end
 
 
-
+%% Not sure what these are
 
 xIntervals = cellfun(@(x) abs(x(1)-x(2)),xRange);
 yIntervals = cellfun(@(x) abs(x(1)-x(2)),yRange);
@@ -36,7 +37,7 @@ yPos = round(rand(1,1)*yIntervals(xRangeId) + yRange{xRangeId}(1));
 
 pos = [xPos yPos];
 
-
+end
 
 
 

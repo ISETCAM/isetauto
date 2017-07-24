@@ -3,8 +3,11 @@
 %
 % Copyright, Henryk Blasinski 2017.
 
+%% The code is in a subdirectory.
+
 [ codePath, parentPath ] = nnGenRootPath();
 
+%% Not sure how these are used
 car2directory = {'MercedesCClass',...
                  'Fiat500',...
                  'MercedesSprinter',...
@@ -17,6 +20,10 @@ car2directory = {'MercedesCClass',...
                  'MercedesML',...
                  'MercedesSLS',...
                  'Ferarri599'};
-             
+%% Asset and lens directories
+
 assetDir = fullfile('/','share','wandell','data','NN_Camera_Generalization','Assets');
+
 lensDir = fullfile(parentPath,'Parameters');
+
+%%
