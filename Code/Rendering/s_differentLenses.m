@@ -11,28 +11,9 @@ ieInit;
 % Sets up related to the car renderings
 nnConstants;
 
-%% Set-up RenderToolbox4
+% Set-up RenderToolbox4
 
 hints = nnHintsInit;
-
-% hints.imageWidth = 640;
-% hints.imageHeight = 480;
-% hints.recipeName = 'Car-Different-Lenses'; % Name of the render
-% hints.renderer = 'PBRT'; % We're only using PBRT right now
-% hints.copyResources = 1;
-% hints.isParallel = false;
-% 
-% % Change the docker container
-% hints.batchRenderStrategy = RtbAssimpStrategy(hints);
-% 
-% hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerMoveCar;
-% hints.batchRenderStrategy.converter = RtbAssimpPBRTConverter(hints);
-% hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
-% hints.batchRenderStrategy.converter.rewriteMeshData = false;
-% hints.batchRenderStrategy.renderer = RtbPBRTRenderer(hints);
-% hints.batchRenderStrategy.renderer.pbrt.dockerImage = 'vistalab/pbrt-v2-spectral';
-% 
-
 
 %% Simulation parameters
 %
@@ -177,33 +158,54 @@ for cityId=1:maxCities
                 filmDistanceVec = zeros(prod(sz),1);
                 cameraDistanceVec = zeros(prod(sz),1);
                 
-                % I think this can be an ndgrid
+                % I think the code below can be an ndgrid
                 % I think what is being built here is
                 % cameraPosition, filmDistance and cameraDistance
-                for cdef=1:length(cameraDefocus)
-                    for ch=1:length(cameraHeight)
-                        for cdd=1:length(cameraDistance)
-                            for co=1:length(cameraOrientation)
-                                
-                                % This would be the counter variable
-                                loc = sub2ind(sz,cdef,ch,cdd,co);
-                                
-                                cx = cameraDistance(cdd)*sind(cameraOrientation(co));
-                                cy = cameraDistance(cdd)*cosd(cameraOrientation(co));
-                                
-                                cameraPosition(loc,1) = cx + carPosition(ap,1);
-                                cameraPosition(loc,2) = cy + carPosition(ap,2);
-                                cameraPosition(loc,3) = cameraHeight(ch);
-                                
-                                filmDistanceVec(loc) = focusLens(lensFile,(max(cameraDistance(cdd)+cameraDefocus(cdef),0.1))*1000);
-                                cameraDistanceVec(loc) = cameraDistance(cdd);
-                                
-                            end
-                        end
-                    end
+                %
+                [X1,X2,X3,X4] = ndgrid(1:length(cameraDefocus),1:length(cameraHeight), 1:length(cameraDistance), 1:length(cameraOrientation));
+                pList = [X1(:) X2(:) X3(:) X4(:)];
+                % dim 1 is cameraDefocus
+                % dim 2 is cameraHeight
+                % dim 3 is cameraDistance
+                % dim 4 is cameraOrientation
+                
+                for ii=1:size(pList,1)
+                    p = pList(ii,:);
+                    cx = cameraDistance(p(3))*sind(cameraOrientation(p(4)));
+                    cy = cameraDistance(p(3))*cosd(cameraOrientation(p(4)));
+                    cameraPosition(ii,1) =  cx + carPosition(ap,1);
+                   cameraPosition(ii,2)  =  cy + carPosition(ap,2);
+                
+                   filmDistanceVec(ii)   = focusLens(lensFile,(max(cameraDistance(p(3)) + cameraDefocus(p(1)),0.1))*1000);
+                
+                   cameraDistanceVec(ii) = cameraDistance(p(3));
                 end
+
+%                 for cdef=1:length(cameraDefocus)
+%                     for ch=1:length(cameraHeight)
+%                         for cdd=1:length(cameraDistance)
+%                             for co=1:length(cameraOrientation)
+%                                 
+%                                 % This would be the counter variable
+%                                 loc = sub2ind(sz,cdef,ch,cdd,co);
+%                                 
+%                                 cx = cameraDistance(cdd)*sind(cameraOrientation(co));
+%                                 cy = cameraDistance(cdd)*cosd(cameraOrientation(co));
+%                                 
+%                                 cameraPosition(loc,1) = cx + carPosition(ap,1);
+%                                 cameraPosition(loc,2) = cy + carPosition(ap,2);
+%                                 cameraPosition(loc,3) = cameraHeight(ch);
+%                                 
+%                                 filmDistanceVec(loc) = focusLens(lensFile,(max(cameraDistance(cdd)+cameraDefocus(cdef),0.1))*1000);
+%                                 cameraDistanceVec(loc) = cameraDistance(cdd);
+%                                 
+%                             end
+%                         end
+%                     end
+%                 end
                 
                 % This is building up the values used for the Conditions file.
+                % values = rtbConditionsCreate(...)
                 %
                 % We might, again, do this with a ndgrid() on the lengths and do
                 % a single loop all the way through.  These multiple nested
@@ -313,11 +315,14 @@ for cityId=1:maxCities
 end
 
 %% Save out the oi if you like
-chdir(fullfile(nnGenRootPath,'local'));
-oiNames = vcGetObjectNames('oi');
-for ii=1:length(oiNames)
-    thisOI = ieGetObject('oi',ii);
-    save(oiNames{ii},'thisOI');
+if 0
+    chdir(fullfile(nnGenRootPath,'local'));
+    oiNames = vcGetObjectNames('oi');
+    for ii=1:length(oiNames)
+        thisOI = ieGetObject('oi',ii);
+        save(oiNames{ii},'thisOI');
+    end
 end
+
 
 
