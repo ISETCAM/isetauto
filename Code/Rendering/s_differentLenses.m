@@ -1,6 +1,19 @@
 %% Compare lens renderings of different cars
 %
-% 
+%  Set car and camera parameters
+%  Set renderer options
+%    There are some resources that are copied here.  Good if this could be
+%    handled automatically
+%  Make the combined scene
+%    For each city and car (there is only one of each right now)
+%     Import city scene
+%     Import car scene
+%     Combine the city and car scene
+%  rtbWriteConditionsFile Combine parameters and write conditions file
+%  rtbMakeSceneFiles - combined scene, conditions, hints
+%  Run the batch renderer
+%  Read the rendered radiance files into OI data structures
+%
 % Henryk Blasinski, SCIEN Stanford, 2017
 
 %% Scene description
@@ -13,8 +26,10 @@ nnConstants;
 
 % Set-up RenderToolbox4
 
-hints = nnHintsInit;
+% hints = nnHintsInit('imageWidth',320,'imageHeight',240);
+hints = nnHintsInit('imageWidth',160,'imageHeight',120);
 
+% Smaller for debugging
 %% Simulation parameters
 %
 % Negative z is up.
@@ -22,7 +37,7 @@ hints = nnHintsInit;
 % However we should specify meters, as they are automatically converted to
 % mm in remodellers.
 
-cameraType = {'pinhole','lens','lens'}; 
+cameraType = {'pinhole','lens','lens'};
 lensType = {'tessar.22deg.6.0mm','tessar.22deg.6.0mm','2el.XXdeg.6.0mm'};
 microlens = {[0,0],[0,0],[0,0]};
 
@@ -46,14 +61,11 @@ cameraPan = [0];
 cameraTilt = [0];
 cameraRoll = [0];
 
-cameraHeight = -1.5;
-cameraDefocus = 0;
+cameraHeight = -1.5; cameraDefocus = 0;
 
-nCarPositions = 1;
-carOrientation = [30];
+nCarPositions = 1;  carOrientation = [30];
 
-maxCars = 1;
-maxCities = 1;
+maxCars = 1; maxCities = 1;
 
 % These are the variable names used in the conditionsFile.  See
 %  https://github.com/RenderToolbox/RenderToolbox4/wiki/Conditions-File-
@@ -68,7 +80,7 @@ assert(length(cameraType)  == length(microlens));
 assert(length(diffraction) == length(chrAber));
 
 
-%% Choose renderer options 
+%% Choose renderer options
 %
 % Select the working folder and copy critical files there
 % Not sure why the lens file is not handled automatically.  This caused a
@@ -133,11 +145,12 @@ for cityId=1:maxCities
             'flipWindingOrder',true,...
             'workingFolder',resourceFolder);
         
+        disp('Combining city and car scenes');
         scene = mexximpCombineScenes(cityScene,carScene,...
             'insertTransform',mexximpTranslate([0 0 0]),...
             'cleanupTransform',mexximpTranslate([0 0 0]));
         
-
+        
         for ap=1:nCarPositions;
             
             for lt=1:length(lensType)
@@ -145,70 +158,27 @@ for cityId=1:maxCities
                 % It seems like we get a clean copy of the Conditions.txt file
                 % here?  Later, we write it out.
                 conditionsFile = fullfile(resourceFolder,'Conditions.txt');
-
-                % This is one place where names is used.  
+                
+                % The conditions file has a structure of names by values.  We
+                % set the size here.
                 values = cell(1,numel(names));
                 cntr = 1;
                 
+                % Here we make the vectors of some of the parameters for the
+                % particular carPosition and lens.
                 lensFile = fullfile(lensDir,sprintf('%s.dat',lensType{lt}));
+                [cameraPosition, filmDistanceVec, cameraDistanceVec] = ...
+                    nnCameraParams(carPosition(ap,:),...
+                    cameraDefocus,cameraHeight,cameraDistance, cameraOrientation, ...
+                    lensFile);
                 
-                sz = [length(cameraDefocus) length(cameraHeight) length(cameraDistance) length(cameraOrientation)];
-                
-                cameraPosition = zeros(prod(sz),3);
-                filmDistanceVec = zeros(prod(sz),1);
-                cameraDistanceVec = zeros(prod(sz),1);
-                
-                % I think the code below can be an ndgrid
-                % I think what is being built here is
-                % cameraPosition, filmDistance and cameraDistance
+                % Here we make the values used for the Conditions file. This
+                % could be a function
+                % 
+                %   values = rtbConditionsCreate(...)
                 %
-                [X1,X2,X3,X4] = ndgrid(1:length(cameraDefocus),1:length(cameraHeight), 1:length(cameraDistance), 1:length(cameraOrientation));
-                pList = [X1(:) X2(:) X3(:) X4(:)];
-                % dim 1 is cameraDefocus
-                % dim 2 is cameraHeight
-                % dim 3 is cameraDistance
-                % dim 4 is cameraOrientation
-                
-                for ii=1:size(pList,1)
-                    p = pList(ii,:);
-                    cx = cameraDistance(p(3))*sind(cameraOrientation(p(4)));
-                    cy = cameraDistance(p(3))*cosd(cameraOrientation(p(4)));
-                    cameraPosition(ii,1) =  cx + carPosition(ap,1);
-                   cameraPosition(ii,2)  =  cy + carPosition(ap,2);
-                
-                   filmDistanceVec(ii)   = focusLens(lensFile,(max(cameraDistance(p(3)) + cameraDefocus(p(1)),0.1))*1000);
-                
-                   cameraDistanceVec(ii) = cameraDistance(p(3));
-                end
-
-%                 for cdef=1:length(cameraDefocus)
-%                     for ch=1:length(cameraHeight)
-%                         for cdd=1:length(cameraDistance)
-%                             for co=1:length(cameraOrientation)
-%                                 
-%                                 % This would be the counter variable
-%                                 loc = sub2ind(sz,cdef,ch,cdd,co);
-%                                 
-%                                 cx = cameraDistance(cdd)*sind(cameraOrientation(co));
-%                                 cy = cameraDistance(cdd)*cosd(cameraOrientation(co));
-%                                 
-%                                 cameraPosition(loc,1) = cx + carPosition(ap,1);
-%                                 cameraPosition(loc,2) = cy + carPosition(ap,2);
-%                                 cameraPosition(loc,3) = cameraHeight(ch);
-%                                 
-%                                 filmDistanceVec(loc) = focusLens(lensFile,(max(cameraDistance(cdd)+cameraDefocus(cdef),0.1))*1000);
-%                                 cameraDistanceVec(loc) = cameraDistance(cdd);
-%                                 
-%                             end
-%                         end
-%                     end
-%                 end
-                
-                % This is building up the values used for the Conditions file.
-                % values = rtbConditionsCreate(...)
-                %
-                % We might, again, do this with a ndgrid() on the lengths and do
-                % a single loop all the way through.  These multiple nested
+                % The function might be a ndgrid() call that uses the lengths() of the
+                % variables. These multiple nested  
                 % loops are very hard to understand and read.
                 for ao=1:length(carOrientation);
                     for p=1:size(cameraPosition,1)
@@ -272,7 +242,7 @@ for cityId=1:maxCities
                         end
                     end
                 end
-                   
+                
                 % Here is names and the values for the conditions file.
                 rtbWriteConditionsFile(conditionsFile,names,values);
                 
@@ -283,16 +253,16 @@ for cityId=1:maxCities
                 %
                 nativeSceneFiles = rtbMakeSceneFiles(scene, 'hints', hints,...
                     'conditionsFile',conditionsFile);
-                               
+                
                 radianceDataFiles = rtbBatchRender(nativeSceneFiles, 'hints', hints);
-               
+                
                 % We aren't saving the radianceDataFiles for all the conditions.
                 %  This means we have to rerun too many times.
                 % load('radianceDataFiles');
                 for i=1:length(radianceDataFiles)
                     % chdir(fullfile(nnGenRootPath,'local'));
                     % save('radianceDataFiles','radianceDataFiles');
-
+                    
                     radianceData = load(radianceDataFiles{i});
                     
                     %% Create an oi
@@ -301,7 +271,7 @@ for cityId=1:maxCities
                     oiParams.filmDiag = 20;
                     
                     [~, label] = fileparts(radianceDataFiles{i});
-                                                            
+                    
                     oi = buildOi(radianceData.multispectralImage, [], oiParams);
                     oi = oiSet(oi,'name',label);
                     
@@ -316,11 +286,11 @@ end
 
 %% Save out the oi if you like
 if 0
-    chdir(fullfile(nnGenRootPath,'local'));
+    chdir(fullfile(nnGenRootPath,'local','tmp'));
     oiNames = vcGetObjectNames('oi');
     for ii=1:length(oiNames)
         thisOI = ieGetObject('oi',ii);
-        save(oiNames{ii},'thisOI');
+        save([oiNames{ii},'.mat'],'thisOI');
     end
 end
 

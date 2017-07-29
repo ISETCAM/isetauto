@@ -1,4 +1,4 @@
-function hints = nnHintsInit()
+function hints = nnHintsInit(varargin)
 % Initialize the rendering hints with the defaults
 %
 % 
@@ -6,8 +6,17 @@ function hints = nnHintsInit()
 %
 % BW/HB SCIEN Stanford, 2017
 
-hints.imageWidth = 640;
-hints.imageHeight = 480;
+%%
+p = inputParser;
+
+% Some can be reset.
+p.addParameter('imageWidth',640,@isnumeric);
+p.addParameter('imageHeight',480,@isnumeric);
+p.parse(varargin{:});
+
+%%
+hints.imageWidth =  p.Results.imageWidth;
+hints.imageHeight = p.Results.imageHeight;
 hints.recipeName = 'Car-Different-Lenses'; % Name of the render
 hints.renderer = 'PBRT'; % We're only using PBRT right now
 hints.copyResources = 1;
