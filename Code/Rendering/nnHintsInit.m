@@ -12,14 +12,15 @@ p = inputParser;
 % Some can be reset.
 p.addParameter('imageWidth',640,@isnumeric);
 p.addParameter('imageHeight',480,@isnumeric);
+
 p.parse(varargin{:});
 
 %%
 hints.imageWidth =  p.Results.imageWidth;
 hints.imageHeight = p.Results.imageHeight;
 hints.recipeName = 'Car-Different-Lenses'; % Name of the render
-hints.renderer = 'PBRT'; % We're only using PBRT right now
-hints.copyResources = 1;
+hints.renderer = 'PBRT';                   % We're only using PBRT right now
+hints.copyResources = 1;                   % Is this a logical?? (BW)
 hints.isParallel = false;
 
 % Change the docker container
@@ -29,7 +30,9 @@ hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerM
 hints.batchRenderStrategy.converter = RtbAssimpPBRTConverter(hints);
 hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
 hints.batchRenderStrategy.converter.rewriteMeshData = false;
+
 hints.batchRenderStrategy.renderer = RtbPBRTRenderer(hints);
+
 hints.batchRenderStrategy.renderer.pbrt.dockerImage = 'vistalab/pbrt-v2-spectral';
 
 

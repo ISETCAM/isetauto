@@ -1,12 +1,15 @@
 function [ sensorDistance ] = focusLens( lensFileName, distance )
-
+% Compute the distance from the lens to the sensor
+%
+%   sensorDistance = focusLens( lensFileName, distance )
+%
 % This function uses CISET autofocus function to compute the distance
 % between the lens and the sensor (sensorDistance) so that the point at
 % distance away is in focus
 %
-% Refer to CISET t_autofocus.m
+% See also: t_autofocus.m (in ciset)
 %
-% Copyright, Henryk Blaisnski 2017
+% Copyright, Henryk Blasinski 2017
 
 %%  Initialize a point and a camera
 

@@ -1,10 +1,18 @@
 function [cameraPosition, filmDistanceVec, cameraDistanceVec] = ...
     nnCameraParams(carPosition, cameraDefocus,cameraHeight,cameraDistance, cameraOrientation, lensFile)
-% Set critical parameters for the neural network generalization cars
+% Set critical parameters for the neural network generalization
+%
+% We make all of these three parameters together because they depend on one
+% another.  What comes back is a set of 
+%  cameraPositions (N x 3), filmDistances (N x 1) and cameraDistances (N x 1)
+% The N is for each condition.
+% The number of conditions depends on the other parameters as well
+%   defocus, height, carPosition, cameraOrientation
 
+%%
 sz = [length(cameraDefocus) length(cameraHeight) length(cameraDistance) length(cameraOrientation)];
 
-cameraPosition    = zeros(prod(sz),3);
+cameraPosition    = zeros(prod(sz),3);  % Three camera position variables
 filmDistanceVec   = zeros(prod(sz),1);
 cameraDistanceVec = zeros(prod(sz),1);
 
@@ -56,3 +64,4 @@ end
 %
 %                    cameraDistanceVec(ii) = cameraDistance(p(3));
 %                 end
+%
