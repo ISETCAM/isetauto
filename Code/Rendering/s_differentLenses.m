@@ -37,9 +37,12 @@ hints = nnHintsInit('imageWidth',160,'imageHeight',120);
 % However we should specify meters, as they are automatically converted to
 % mm in remodellers.
 
-cameraType = {'pinhole','lens','lens'};
-lensType = {'tessar.22deg.6.0mm','tessar.22deg.6.0mm','2el.XXdeg.6.0mm'};
-microlens = {[0,0],[0,0],[0,0]};
+% cameraType = {'pinhole','lens','lens'};
+% lensType = {'tessar.22deg.6.0mm','tessar.22deg.6.0mm','2el.XXdeg.6.0mm'};
+% microlens = {[0,0],[0,0],[0,0]};
+cameraType = {'pinhole'};
+lensType = {'tessar.22deg.6.0mm'};
+microlens = {[0,0]};
 
 mode = {'radiance'};
 
@@ -100,9 +103,12 @@ end
 skyFile = fullfile(assetDir,'City','*.exr');
 copyfile(skyFile,resourceFolder);
 
-% Copy D65 spectrum
-[wave, d65] = rtbReadSpectrum(fullfile(rtbRoot,'RenderData','D65.spd'));
+% Use ISET, copy D65 spectrum
+wave = 400:10:700;
+d65  = ieReadSpectra('D65',wave);
 d65 = 100*d65;
+
+% [wave, d65] = rtbReadSpectrum(fullfile(rtbRoot,'RenderData','D65.spd'));
 rtbWriteSpectrumFile(wave,d65,fullfile(resourceFolder,'D65.spd'));
 
 
@@ -152,8 +158,9 @@ for cityId=1:maxCities
         
         
         for ap=1:nCarPositions;
-            
+            fprintf('Car position %d\n',ap);
             for lt=1:length(lensType)
+                fprintf('Lens type %s\n',lensType{lt});
                 
                 % It seems like we get a clean copy of the Conditions.txt file
                 % here?  Later, we write it out.
@@ -180,6 +187,11 @@ for cityId=1:maxCities
                 % The function might be a ndgrid() call that uses the lengths() of the
                 % variables. These multiple nested  
                 % loops are very hard to understand and read.
+                %
+                % Maybe the rule is this.  There are multiple params, which is a
+                % cellarray.  Each element of the cell aray is either a string
+                % or a vector, or a matrix.
+                %
                 for ao=1:length(carOrientation);
                     for p=1:size(cameraPosition,1)
                         for s=1:size(shadowDirection,1)
@@ -254,10 +266,16 @@ for cityId=1:maxCities
                 nativeSceneFiles = rtbMakeSceneFiles(scene, 'hints', hints,...
                     'conditionsFile',conditionsFile);
                 
+                fprintf('Back rendering %d files\n',length(nativeSceneFiles));
                 radianceDataFiles = rtbBatchRender(nativeSceneFiles, 'hints', hints);
                 
                 % We aren't saving the radianceDataFiles for all the conditions.
-                %  This means we have to rerun too many times.
+                % This means we have to rerun too many times.
+                %
+                % Also, we don't have the true irradiance level, just a
+                % noise-free irradiance.  So, we should aim to set the
+                % irradiance to a reasonable level here.
+                %
                 % load('radianceDataFiles');
                 for i=1:length(radianceDataFiles)
                     % chdir(fullfile(nnGenRootPath,'local'));
@@ -293,6 +311,28 @@ if 0
         save([oiNames{ii},'.mat'],'thisOI');
     end
 end
+
+if 0
+    %% Experiment with different camera renderings
+    oi   = ieGetObject('oi');
+    fov  = oiGet(oi,'fov');
+    oi   = oiAdjustIlluminance(oi,10);   % The illuminance values are very small
+    
+    % Big sensor
+    sensor = sensorCreate;
+    sensor = sensorSet(sensor,'fov',fov);
+    
+    sensor = sensorCompute(sensor,oi);
+    ieAddObject(sensor); sensorWindow;
+    
+    ip = ipCreate;
+    ip = ipCompute(ip,sensor);
+    ieAddObject(ip); ipWindow;
+    
+end
+
+%%
+
 
 
 
