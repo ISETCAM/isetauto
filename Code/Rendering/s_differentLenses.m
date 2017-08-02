@@ -44,8 +44,11 @@ microlens = {[0,0]};
 mode = {'radiance'};
 
 fNumber  = 2.8;
-filmDiag = (1/3.6)*25.4;   % Millimeters
+focalLength
 fov = 45;                  % Deg
+meanIlluminance = 5;       % Lux
+
+filmDiag = (1/3.6)*25.4;   % Millimeters
 
 % Calculate the width from the diag assuming a 4x3 form factor
 %
@@ -210,14 +213,14 @@ for cityId=1:maxCities
                     cameraDefocus,cameraHeight,cameraDistance, cameraOrientation, ...
                     lensFile);
                 
-                % Here we make the values used for the Conditions file. This
-                % could be a function
+                % Make the values used for the Conditions file. This could be a
+                % function
                 % 
                 %   values = rtbConditionsCreate(...)
                 %
-                % The function might be a ndgrid() call that uses the lengths() of the
-                % variables. These multiple nested  
-                % loops are very hard to understand and read.
+                % The function might be a ndgrid() call that uses the lengths()
+                % of the variables. These multiple nested loops are very hard to
+                % understand and read.
                 %
                 % Maybe the rule is this.  There are multiple params, which is a
                 % cellarray.  Each element of the cell aray is either a string
@@ -233,7 +236,6 @@ for cityId=1:maxCities
                                             for df=1:length(diffraction)
                                                 
                                                 for mo=1:length(mode)
-                                                    
                                                     
                                                     if strcmp(cameraType{lt},'pinhole')
                                                         currentFilmDistance = effectiveFocalLength(lensFile);
@@ -273,9 +275,7 @@ for cityId=1:maxCities
                                                     
                                                     cntr = cntr + 1;
                                                     
-                                                    
                                                 end
-                                                
                                                 sceneID = sceneID+1;
                                             end
                                         end
@@ -317,19 +317,23 @@ for cityId=1:maxCities
                     % Create an oi and set the parameters
                     clear oiParams;
                     oiParams.optics_name = lensType{lt};
+                    oiParams.optics_model = 'diffractionlimited';
                     oiParams.fov = fov;
                     switch ieParamFormat(lensType{lt})
                         case 'pinhole'
                             oiParams.optics_fnumber = 999;
                         otherwise
-                            oiParams.optics_fnumber = fNumber(i);
+                            oiParams.optics_fnumber = fNumber(lt);
                     end
-                    oiParams.optics_focalLength = filmDistanceVec(i)*1e-3; % In meters
+                    oiParams.optics_focalLength = filmDistanceVec(lt)*1e-3; % In meters
+                    oiParams.meanilluminance = 1;
                     [~, label] = fileparts(radianceDataFiles{i});
                     oiParams.name = label;
                     
                     oi = buildOi(radianceData.multispectralImage, [], oiParams);
-
+                    
+                    oi = oiAdjustIlluminance(oi,meanIlluminance);
+                    
                     ieAddObject(oi);
                     oiWindow;
                     

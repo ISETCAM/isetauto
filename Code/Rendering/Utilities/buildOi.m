@@ -26,6 +26,7 @@ oi = oiSet(oi, 'depthmap', depthMap);
     oi = oiSet(oi,names{ii},oiParams.(names{ii}));
  end
 
+end
 
 %% Transfer various lens parameters to optical image.
 % if strcmp(oiParams.lensType, 'realisticDiffraction')
