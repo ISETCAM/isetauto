@@ -21,33 +21,48 @@
 % Initialize ISET related variables
 ieInit;
 
-% Sets up related to the car renderings
+% Sets up related to the car renderings and local directory tree
 nnConstants;
 
-% Set-up RenderToolbox4
-
-% hints = nnHintsInit('imageWidth',320,'imageHeight',240);
+% Small image size for debugging
 hints = nnHintsInit('imageWidth',160,'imageHeight',120);
 
 % Smaller for debugging
 %% Simulation parameters
 %
-% Negative z is up.
-% Scene is about 200x200m, units are mm.
-% However we should specify meters, as they are automatically converted to
-% mm in remodellers.
+% Negative z is up. Scene is about 200x200m, units are mm. We  specify distances
+% in meters; they are automatically converted to mm in remodellers.
 
 % cameraType = {'pinhole','lens','lens'};
 % lensType = {'tessar.22deg.6.0mm','tessar.22deg.6.0mm','2el.XXdeg.6.0mm'};
 % microlens = {[0,0],[0,0],[0,0]};
+
 cameraType = {'pinhole'};
 lensType = {'tessar.22deg.6.0mm'};
 microlens = {[0,0]};
 
 mode = {'radiance'};
 
-fNumber = 2.8;
-filmDiag = (1/3.6)*25.4;
+fNumber  = 2.8;
+
+filmDiag = (1/3.6)*25.4;   % Millimeters
+
+% Calculate the width from the diag assuming a 4x3 form factor
+%
+% filmDiag = sqrt(w^2 + h^2) = sqrt(w^2 + (0.75*w^2))
+% w = filmDiag/sqrt(1 + (0.75)^2))
+% w = filmDiag / sqrt( 1.5625) = filmDiag/1.25;
+%
+% We always assume the angular (width) field of view is FOV deg.  The sensor size
+% in mm can be calculated as
+%
+%    FOV/2 = atand( (opp/2)/focalLength) 
+%    opp = 2* focalLength*tand(FOV/2)
+%
+% So, if FOV = 45 and focalLength is 5mm, then the sensor size (opp) is
+%
+%    2*5*tand(45/2), or 4.1421 mm
+%
 
 diffraction = {'false','true'};
 chrAber = {'false','true'};
@@ -55,7 +70,7 @@ chrAber = {'false','true'};
 % diffraction = {'false','true'};
 % chrAber = {'false','true'};
 
-pixelSamples = 128;
+pixelSamples = 128;        % Ray samples per pixel?
 shadowDirection = [-0.5 -1 1;];
 
 cameraDistance = [10 20];
@@ -286,8 +301,11 @@ for cityId=1:maxCities
                     %% Create an oi
                     oiParams.lensType = lensType{lt};
                     oiParams.filmDistance = 10;
-                    oiParams.filmDiag = 20;
+                    oiParams.filmDiag = filmDiag;
                     
+                    oiParams.opticsName = lensType{ly};
+                    oiParams.opticsfnumber = 2.8;
+                    oiParams.opticsFocalLength = 
                     [~, label] = fileparts(radianceDataFiles{i});
                     
                     oi = buildOi(radianceData.multispectralImage, [], oiParams);

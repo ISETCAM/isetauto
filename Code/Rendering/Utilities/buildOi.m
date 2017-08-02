@@ -1,8 +1,10 @@
+function oi = buildOi(photons, depthMap, oiParams)
 % Build and ISET Optical Image.
 %   @param photons h x w x 31 multi-spectral radiance matrix
 %   @param depthMap h x w depth matrix
 %   @param oiParams struct of extra optical image params
-function oi = buildOi(photons, depthMap, oiParams)
+%
+% HB, Scien Team, 2017
 
 %% New optical image with photon and depth data.
 oi = oiCreate;
@@ -11,6 +13,13 @@ oi = oiSet(oi, 'depthmap', depthMap);
 
 % need to truncate and scale photon data for some reason?
 oi = oiSet(oi, 'photons', single(photons));
+
+%% This could be
+%  names = fieldnames(oiParams);
+%  for ii=1:length(names)
+%     oi = oiSet(oi,names{ii},oiParams.(names{ii})
+%  end
+
 
 %% Transfer various lens parameters to optical image.
 if strcmp(oiParams.lensType, 'realisticDiffraction')
