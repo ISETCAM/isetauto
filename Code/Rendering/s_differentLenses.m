@@ -44,8 +44,8 @@ microlens = {[0,0]};
 mode = {'radiance'};
 
 fNumber  = 2.8;
-
 filmDiag = (1/3.6)*25.4;   % Millimeters
+fov = 45;                  % Deg
 
 % Calculate the width from the diag assuming a 4x3 form factor
 %
@@ -53,16 +53,31 @@ filmDiag = (1/3.6)*25.4;   % Millimeters
 % w = filmDiag/sqrt(1 + (0.75)^2))
 % w = filmDiag / sqrt( 1.5625) = filmDiag/1.25;
 %
-% We always assume the angular (width) field of view is FOV deg.  The sensor size
+% We assume the angular (width) field of view is FOV deg.  The sensor size
 % in mm can be calculated as
 %
-%    FOV/2 = atand( (opp/2)/focalLength) 
-%    opp = 2* focalLength*tand(FOV/2)
+%    FOV/2 = atand( (width/2)/focalLength) 
+%    width = 2* focalLength*tand(FOV/2)
 %
-% So, if FOV = 45 and focalLength is 5mm, then the sensor size (opp) is
+% So, if FOV = 45 and focalLength is 5mm, then the sensor size (width) is
 %
 %    2*5*tand(45/2), or 4.1421 mm
 %
+% The height is 0.75*width.  It is 
+
+% % Compute the horizontal field of view
+% x = size(photons, 1);
+% y = size(photons, 2);
+% d = sqrt(x^2 + y^2);  % Number of samples along the diagonal
+% fwidth= (oiParams.filmDiag / d) * x;    % Diagonal size by d gives us mm per step
+% 
+% % multiplying by x gives us the horizontal mm
+% % Calculate angle in degrees
+% fov = 2 * atan2d(fwidth / 2, oiParams.filmDistance);
+% 
+% % Store the horizontal field of view in degrees in the oi
+% oi = oiSet(oi, 'fov', fov);
+
 
 diffraction = {'false','true'};
 chrAber = {'false','true'};
@@ -85,12 +100,6 @@ nCarPositions = 1;  carOrientation = [30];
 
 maxCars = 1; maxCities = 1;
 
-% These are the variable names used in the conditionsFile.  See
-%  https://github.com/RenderToolbox/RenderToolbox4/wiki/Conditions-File-
-% Some of these are standard.  Some are selected here.
-names = {'imageName','cameraType','lensType','mode','pixelSamples','filmDist','filmDiag','cameraPosition',...
-    'shadowDirection','microlensDim','cameraLookAt','fNumber','carPosition','carOrientation','fog',...
-    'diffraction','chromaticAberration','cameraPan','cameraTilt','cameraRoll'};
 
 %% Check
 assert(length(cameraType)  == length(lensType));
@@ -129,6 +138,13 @@ rtbWriteSpectrumFile(wave,d65,fullfile(resourceFolder,'D65.spd'));
 
 %% Choose files to render
 sceneID = 1;
+
+% These are the variable names used in the conditionsFile.  See
+%  https://github.com/RenderToolbox/RenderToolbox4/wiki/Conditions-File-
+% Some of these are standard.  Some are selected here.
+names = {'imageName','cameraType','lensType','mode','pixelSamples','filmDist','filmDiag','cameraPosition',...
+    'shadowDirection','microlensDim','cameraLookAt','fNumber','carPosition','carOrientation','fog',...
+    'diffraction','chromaticAberration','cameraPan','cameraTilt','cameraRoll'};
 
 for cityId=1:maxCities
     sceneFile = sprintf('City_%i.obj',cityId);
@@ -298,19 +314,22 @@ for cityId=1:maxCities
                     
                     radianceData = load(radianceDataFiles{i});
                     
-                    %% Create an oi
-                    oiParams.lensType = lensType{lt};
-                    oiParams.filmDistance = 10;
-                    oiParams.filmDiag = filmDiag;
-                    
-                    oiParams.opticsName = lensType{ly};
-                    oiParams.opticsfnumber = 2.8;
-                    oiParams.opticsFocalLength = 
+                    % Create an oi and set the parameters
+                    clear oiParams;
+                    oiParams.optics_name = lensType{lt};
+                    oiParams.fov = fov;
+                    switch ieParamFormat(lensType{lt})
+                        case 'pinhole'
+                            oiParams.optics_fnumber = 999;
+                        otherwise
+                            oiParams.optics_fnumber = fNumber(i);
+                    end
+                    oiParams.optics_focalLength = filmDistanceVec(i)*1e-3; % In meters
                     [~, label] = fileparts(radianceDataFiles{i});
+                    oiParams.name = label;
                     
                     oi = buildOi(radianceData.multispectralImage, [], oiParams);
-                    oi = oiSet(oi,'name',label);
-                    
+
                     ieAddObject(oi);
                     oiWindow;
                     
