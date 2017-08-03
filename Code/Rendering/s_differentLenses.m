@@ -44,7 +44,6 @@ microlens = {[0,0]};
 mode = {'radiance'};
 
 fNumber  = 2.8;
-focalLength
 fov = 45;                  % Deg
 meanIlluminance = 5;       % Lux
 
@@ -148,6 +147,7 @@ sceneID = 1;
 names = {'imageName','cameraType','lensType','mode','pixelSamples','filmDist','filmDiag','cameraPosition',...
     'shadowDirection','microlensDim','cameraLookAt','fNumber','carPosition','carOrientation','fog',...
     'diffraction','chromaticAberration','cameraPan','cameraTilt','cameraRoll'};
+idxImageName = ismember('imageName',names);
 
 for cityId=1:maxCities
     sceneFile = sprintf('City_%i.obj',cityId);
@@ -190,22 +190,13 @@ for cityId=1:maxCities
             'insertTransform',mexximpTranslate([0 0 0]),...
             'cleanupTransform',mexximpTranslate([0 0 0]));
         
-        
+        cntr = 1;   % Counts the files
         for ap=1:nCarPositions;
             fprintf('Car position %d\n',ap);
             for lt=1:length(lensType)
                 fprintf('Lens type %s\n',lensType{lt});
                 
-                % It seems like we get a clean copy of the Conditions.txt file
-                % here?  Later, we write it out.
-                conditionsFile = fullfile(resourceFolder,'Conditions.txt');
-                
-                % The conditions file has a structure of names by values.  We
-                % set the size here.
-                values = cell(1,numel(names));
-                cntr = 1;
-                
-                % Here we make the vectors of some of the parameters for the
+                % Calculate the vectors of some of the parameters for the
                 % particular carPosition and lens.
                 lensFile = fullfile(lensDir,sprintf('%s.dat',lensType{lt}));
                 [cameraPosition, filmDistanceVec, cameraDistanceVec] = ...
@@ -213,91 +204,140 @@ for cityId=1:maxCities
                     cameraDefocus,cameraHeight,cameraDistance, cameraOrientation, ...
                     lensFile);
                 
-                % Make the values used for the Conditions file. This could be a
-                % function
-                % 
-                %   values = rtbConditionsCreate(...)
+                % Current film distance
+                if strcmp(cameraType{lt},'pinhole')
+                    currentFilmDistance = effectiveFocalLength(lensFile);
+                else
+                    currentFilmDistance = filmDistanceVec(p);
+                end
+
+                %% Make values used for the Conditions file.
                 %
-                % The function might be a ndgrid() call that uses the lengths()
-                % of the variables. These multiple nested loops are very hard to
-                % understand and read.
-                %
-                % Maybe the rule is this.  There are multiple params, which is a
-                % cellarray.  Each element of the cell aray is either a string
-                % or a vector, or a matrix.
-                %
-                for ao=1:length(carOrientation);
-                    for p=1:size(cameraPosition,1)
-                        for s=1:size(shadowDirection,1)
-                            for fn=1:length(fNumber)
-                                for cpan=1:length(cameraPan)
-                                    for ctilt=1:length(cameraTilt)
-                                        for croll=1:length(cameraRoll)
-                                            for df=1:length(diffraction)
-                                                
-                                                for mo=1:length(mode)
+                % Parameters are placed in a struct that will be gridded for the
+                % conditions.
+                for ii=1:length(names), params.(names{ii}) = [];  end
+                fName = sprintf('car_%02i_%s_%s',carId,cameraType{lt},lensType{lt});
                                                     
-                                                    if strcmp(cameraType{lt},'pinhole')
-                                                        currentFilmDistance = effectiveFocalLength(lensFile);
-                                                    else
-                                                        currentFilmDistance = filmDistanceVec(p);
-                                                    end
-                                                    
-                                                    % ap is the car position
-                                                    % index
-                                                    cameraLookAt = [carPosition(ap,1:2) cameraHeight];
-                                                    
-                                                    fName = sprintf('%05i_city_%02i_car_%02i_%s_%s_%s_fN_%.2f_diff_%s_chr_%s',...
-                                                        sceneID,cityId,carId,cameraType{lt},lensType{lt},mode{mo},fNumber(fn),diffraction{df},chrAber{df});
-                                                    
-                                                    values(cntr,1) = {fName};
-                                                    values(cntr,2) = cameraType(lt);
-                                                    values(cntr,3) = lensType(lt);
-                                                    values(cntr,4) = mode(mo);
-                                                    values(cntr,5) = num2cell(pixelSamples,1);
-                                                    values(cntr,6) = num2cell(currentFilmDistance,1);
-                                                    values(cntr,7) = num2cell(filmDiag,1);
-                                                    values(cntr,8) = {mat2str(cameraPosition(p,:))};
-                                                    values(cntr,9) = {mat2str(shadowDirection(s,:))};
-                                                    values(cntr,10) = {mat2str(microlens{lt})};
-                                                    
-                                                    values(cntr,11) = {mat2str(cameraLookAt)};
-                                                    
-                                                    values(cntr,12) = num2cell(fNumber(fn),1);
-                                                    values(cntr,13) = {mat2str(carPosition(ap,:))};
-                                                    values(cntr,14) = num2cell(carOrientation(ao));
-                                                    values(cntr,15) = {0};
-                                                    values(cntr,16) = diffraction(df);
-                                                    values(cntr,17) = chrAber(df);
-                                                    values(cntr,18) = num2cell(cameraPan(cpan),1);
-                                                    values(cntr,19) = num2cell(cameraTilt(ctilt),1);
-                                                    values(cntr,20) = num2cell(cameraRoll(croll),1);
-                                                    
-                                                    cntr = cntr + 1;
-                                                    
-                                                end
-                                                sceneID = sceneID+1;
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
+                % Only list parameters that can be fully crossed by ndgrid
+                params.(names{1}) = fName;
+                params.(names{2}) = cameraType(lt);
+                params.(names{3}) = lensType(lt);
+                params.(names{4}) = mode;
+                params.(names{5}) = pixelSamples;
+                params.(names{6}) = currentFilmDistance;
+                params.(names{7}) = filmDiag;
+                params.(names{8}) = cameraPosition;
+                params.(names{9}) = shadowDirection;
+                params.(names{10}) = microlens{lt};
+                params.(names{11}) = [carPosition(ap,1:2) cameraHeight];
+                params.(names{12}) = fNumber;
+                params.(names{13}) = carPosition(ap,:);
+                params.(names{14}) = carOrientation;
+                params.(names{15}) = 0;
+                params.(names{16}) = diffraction{1};
+                params.(names{17}) = chrAber{1};
+                params.(names{18}) = cameraPan;
+                params.(names{19}) = cameraTilt;
+                params.(names{20}) = cameraRoll;
+                
+                % This creates the first group of conditions
+                values = nnConditions(params);
+                
+                % Now put in the other diffraction chrAber case
+                params.(names{16}) = diffraction{2};
+                params.(names{17}) = chrAber{2};
+                
+                % Compute the second group of conditions and combine
+                values = vertcat(values,nnConditions(params)); %#ok<AGROW>
+                
+                % Now adjust the imageName, adding an integer index
+                for ii=1:size(values,1)
+                    values{ii,idxImageName} = sprintf('%02d-%s',cntr,values{ii,idxImageName});
+                    cntr = cntr+1;
                 end
                 
-                % Here is names and the values for the conditions file.
+                % Write out the conditions file
+                conditionsFile = fullfile(resourceFolder,'Conditions.txt');
                 rtbWriteConditionsFile(conditionsFile,names,values);
+                % edit(conditionsFile);
+
+                %%
+%                 values = cell(1,numel(names));
+%                 cntr = 1;
+%                 for ao=1:length(carOrientation);
+%                     for p=1:size(cameraPosition,1)
+%                         for s=1:size(shadowDirection,1)
+%                             for fn=1:length(fNumber)
+%                                 for cpan=1:length(cameraPan)
+%                                     for ctilt=1:length(cameraTilt)
+%                                         for croll=1:length(cameraRoll)
+%                                             for df=1:length(diffraction)
+%                                                 
+%                                                 for mo=1:length(mode)
+%                                                     
+%                                                     if strcmp(cameraType{lt},'pinhole')
+%                                                         currentFilmDistance = effectiveFocalLength(lensFile);
+%                                                     else
+%                                                         currentFilmDistance = filmDistanceVec(p);
+%                                                     end
+%                                                     
+%                                                     % ap is the car position
+%                                                     % index
+%                                                     cameraLookAt = [carPosition(ap,1:2) cameraHeight];
+%                                                     
+%                                                     fName = sprintf('%05i_city_%02i_car_%02i_%s_%s_%s_fN_%.2f_diff_%s_chr_%s',...
+%                                                         sceneID,cityId,carId,cameraType{lt},lensType{lt},mode{mo},fNumber(fn),diffraction{df},chrAber{df});
+%                                                     
+%                                                     values(cntr,1) = {fName};
+%                                                     values(cntr,2) = cameraType(lt);
+%                                                     values(cntr,3) = lensType(lt);
+%                                                     values(cntr,4) = mode(mo);
+%                                                     values(cntr,5) = num2cell(pixelSamples,1);
+%                                                     values(cntr,6) = num2cell(currentFilmDistance,1);
+%                                                     values(cntr,7) = num2cell(filmDiag,1);
+%                                                     values(cntr,8) = {mat2str(cameraPosition(p,:))};
+%                                                     values(cntr,9) = {mat2str(shadowDirection(s,:))};
+%                                                     values(cntr,10) = {mat2str(microlens{lt})};
+%                                                     
+%                                                     values(cntr,11) = {mat2str(cameraLookAt)};
+%                                                     
+%                                                     values(cntr,12) = num2cell(fNumber(fn),1);
+%                                                     values(cntr,13) = {mat2str(carPosition(ap,:))};
+%                                                     values(cntr,14) = num2cell(carOrientation(ao));
+%                                                     values(cntr,15) = {0};
+%                                                     values(cntr,16) = diffraction(df);
+%                                                     values(cntr,17) = chrAber(df);
+%                                                     values(cntr,18) = num2cell(cameraPan(cpan),1);
+%                                                     values(cntr,19) = num2cell(cameraTilt(ctilt),1);
+%                                                     values(cntr,20) = num2cell(cameraRoll(croll),1);
+%                                                     
+%                                                     cntr = cntr + 1;
+%                                                     
+%                                                 end
+%                                                 sceneID = sceneID+1;
+%                                             end
+%                                         end
+%                                     end
+%                                 end
+%                             end
+%                         end
+%                     end
+%                 end
+%                 
+%                 % Here is names and the values for the conditions file.
+%                 conditionsFileOLD = fullfile(resourceFolder,'ConditionsOLD.txt');
+%                 rtbWriteConditionsFile(conditionsFileOLD,names,values);
+%                 edit(conditionsFileOLD);
                 
-                % Generate files and render
-                % We parallelize scene generation, not the rendering because PBRT
-                % automatically scales the number of processes to equal the nubmer of
-                % cores.
+                %% Generate files and render
+                % We parallelize scene generation, not the rendering because
+                % PBRT automatically scales the number of processes to equal the
+                % number of cores.
                 %
                 nativeSceneFiles = rtbMakeSceneFiles(scene, 'hints', hints,...
                     'conditionsFile',conditionsFile);
                 
-                fprintf('Back rendering %d files\n',length(nativeSceneFiles));
+                fprintf('Batch rendering %d files\n',length(nativeSceneFiles));
                 radianceDataFiles = rtbBatchRender(nativeSceneFiles, 'hints', hints);
                 
                 % We aren't saving the radianceDataFiles for all the conditions.
@@ -308,6 +348,7 @@ for cityId=1:maxCities
                 % irradiance to a reasonable level here.
                 %
                 % load('radianceDataFiles');
+                fprintf('Creating OI\n');
                 for i=1:length(radianceDataFiles)
                     % chdir(fullfile(nnGenRootPath,'local'));
                     % save('radianceDataFiles','radianceDataFiles');
@@ -326,7 +367,6 @@ for cityId=1:maxCities
                             oiParams.optics_fnumber = fNumber(lt);
                     end
                     oiParams.optics_focalLength = filmDistanceVec(lt)*1e-3; % In meters
-                    oiParams.meanilluminance = 1;
                     [~, label] = fileparts(radianceDataFiles{i});
                     oiParams.name = label;
                     
