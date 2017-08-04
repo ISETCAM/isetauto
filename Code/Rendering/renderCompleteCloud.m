@@ -164,7 +164,8 @@ for cityId=1:maxCities
         
         scene = mexximpCombineScenes(cityScene,carScene,...
             'insertTransform',mexximpTranslate([0 0 0]),...
-            'cleanupTransform',mexximpTranslate([0 0 0]));
+            'cleanupTransform',mexximpTranslate([0 0 0]),...
+            'insertPrefix',sprintf('CL:car_INST:1'));
         
         carPosition = zeros(nCarPositions,3);
         
