@@ -14,6 +14,14 @@
 %  Run the batch renderer
 %  Read the rendered radiance files into OI data structures
 %
+% TODO:
+%    Illustrate impact of chromatic aberration and diffraction some how.
+%    More colorful objects, scene complexity.
+%    Save the geometry for efficiency, varying optics but not scene
+%    Make a small video as the camera moves forward, say 120 frames comprising 4
+%      secs?
+%    Not sure we need to copoy both exr and jpg, but maybe.  Should check.
+%
 % Henryk Blasinski, SCIEN Stanford, 2017
 
 %% Scene description
@@ -22,10 +30,11 @@
 ieInit;
 
 % Sets up related to the car renderings and local directory tree
+% Maybe should be called nnDirectories
 nnConstants;
 
 % Small image size for debugging
-hints = nnHintsInit('imageWidth',160,'imageHeight',120);
+hints = nnHintsInit('imageWidth',640,'imageHeight',480);
 
 % Smaller for debugging
 %% Simulation parameters
@@ -84,30 +93,27 @@ filmDiag = (1/3.6)*25.4;   % Millimeters
 diffraction = {'false','true'};
 chrAber = {'false','true'};
 
-% diffraction = {'false','true'};
-% chrAber = {'false','true'};
-
-pixelSamples = 128;        % Ray samples per pixel?
+pixelSamples    = 192;             % Ray samples per pixel?
 shadowDirection = [-0.5 -1 1;];
 
-cameraDistance = [10 20];
+% Anything on the 'names' list can be a vector
+cameraDistance    = [10 20];
 cameraOrientation = [0];
-cameraPan = [0];
-cameraTilt = [0];
-cameraRoll = [0];
+cameraPan     = 0;  
+cameraTilt    = 0;
+cameraRoll    = 0;
+cameraHeight  = -1.5; 
+cameraDefocus = 0;
 
-cameraHeight = -1.5; cameraDefocus = 0;
-
-nCarPositions = 1;  carOrientation = [30];
+nCarPositions  = 1;  
+carOrientation = [30];
 
 maxCars = 1; maxCities = 1;
-
 
 %% Check
 assert(length(cameraType)  == length(lensType));
 assert(length(cameraType)  == length(microlens));
 assert(length(diffraction) == length(chrAber));
-
 
 %% Choose renderer options
 %
@@ -260,74 +266,6 @@ for cityId=1:maxCities
                 conditionsFile = fullfile(resourceFolder,'Conditions.txt');
                 rtbWriteConditionsFile(conditionsFile,names,values);
                 % edit(conditionsFile);
-
-                %%
-%                 values = cell(1,numel(names));
-%                 cntr = 1;
-%                 for ao=1:length(carOrientation);
-%                     for p=1:size(cameraPosition,1)
-%                         for s=1:size(shadowDirection,1)
-%                             for fn=1:length(fNumber)
-%                                 for cpan=1:length(cameraPan)
-%                                     for ctilt=1:length(cameraTilt)
-%                                         for croll=1:length(cameraRoll)
-%                                             for df=1:length(diffraction)
-%                                                 
-%                                                 for mo=1:length(mode)
-%                                                     
-%                                                     if strcmp(cameraType{lt},'pinhole')
-%                                                         currentFilmDistance = effectiveFocalLength(lensFile);
-%                                                     else
-%                                                         currentFilmDistance = filmDistanceVec(p);
-%                                                     end
-%                                                     
-%                                                     % ap is the car position
-%                                                     % index
-%                                                     cameraLookAt = [carPosition(ap,1:2) cameraHeight];
-%                                                     
-%                                                     fName = sprintf('%05i_city_%02i_car_%02i_%s_%s_%s_fN_%.2f_diff_%s_chr_%s',...
-%                                                         sceneID,cityId,carId,cameraType{lt},lensType{lt},mode{mo},fNumber(fn),diffraction{df},chrAber{df});
-%                                                     
-%                                                     values(cntr,1) = {fName};
-%                                                     values(cntr,2) = cameraType(lt);
-%                                                     values(cntr,3) = lensType(lt);
-%                                                     values(cntr,4) = mode(mo);
-%                                                     values(cntr,5) = num2cell(pixelSamples,1);
-%                                                     values(cntr,6) = num2cell(currentFilmDistance,1);
-%                                                     values(cntr,7) = num2cell(filmDiag,1);
-%                                                     values(cntr,8) = {mat2str(cameraPosition(p,:))};
-%                                                     values(cntr,9) = {mat2str(shadowDirection(s,:))};
-%                                                     values(cntr,10) = {mat2str(microlens{lt})};
-%                                                     
-%                                                     values(cntr,11) = {mat2str(cameraLookAt)};
-%                                                     
-%                                                     values(cntr,12) = num2cell(fNumber(fn),1);
-%                                                     values(cntr,13) = {mat2str(carPosition(ap,:))};
-%                                                     values(cntr,14) = num2cell(carOrientation(ao));
-%                                                     values(cntr,15) = {0};
-%                                                     values(cntr,16) = diffraction(df);
-%                                                     values(cntr,17) = chrAber(df);
-%                                                     values(cntr,18) = num2cell(cameraPan(cpan),1);
-%                                                     values(cntr,19) = num2cell(cameraTilt(ctilt),1);
-%                                                     values(cntr,20) = num2cell(cameraRoll(croll),1);
-%                                                     
-%                                                     cntr = cntr + 1;
-%                                                     
-%                                                 end
-%                                                 sceneID = sceneID+1;
-%                                             end
-%                                         end
-%                                     end
-%                                 end
-%                             end
-%                         end
-%                     end
-%                 end
-%                 
-%                 % Here is names and the values for the conditions file.
-%                 conditionsFileOLD = fullfile(resourceFolder,'ConditionsOLD.txt');
-%                 rtbWriteConditionsFile(conditionsFileOLD,names,values);
-%                 edit(conditionsFileOLD);
                 
                 %% Generate files and render
                 % We parallelize scene generation, not the rendering because
@@ -393,6 +331,7 @@ if 0
     end
 end
 
+%%
 if 0
     %% Experiment with different camera renderings
     oi   = ieGetObject('oi');

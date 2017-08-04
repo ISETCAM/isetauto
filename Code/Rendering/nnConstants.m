@@ -3,7 +3,7 @@
 %
 % Copyright, Henryk Blasinski 2017.
 
-%% The code is in a subdirectory.
+%% The crticial directories are established here
 
 [ codePath, parentPath ] = nnGenRootPath();
 
