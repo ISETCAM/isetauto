@@ -18,8 +18,8 @@ labelMap(1).name = 'car';
 labelMap(1).id = 7;
 
 % mode = 'fullResRGB';
-mode = 'linearRGB';
-% mode = 'rawRGB';
+% mode = 'linearRGB';
+mode = 'rawRGB';
 % mode = 'noise_100';
 % mode = 'sRGB';
 

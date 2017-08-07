@@ -8,7 +8,7 @@ filmDist = rtbGetNamedNumericValue(names,conditionValues,'filmDist',[]);
 filmDiag = rtbGetNamedNumericValue(names,conditionValues,'filmDiag',[]);
 microlensDim = eval(rtbGetNamedValue(names,conditionValues,'microlensDim',[0, 0]));
 fNumber = rtbGetNamedNumericValue(names,conditionValues,'fNumber',[]);
-fog = rtbGetNamedNumericValue(names,conditionValues,'fog',0);
+fog = 0;
 diffraction = rtbGetNamedValue(names,conditionValues,'diffraction','true');
 chromaticAberration = rtbGetNamedValue(names,conditionValues,'chromaticAberration','false');
 

@@ -1,4 +1,4 @@
-function [ classMap, instanceMap ] = mergeMetadata( fileName, classesToMerge, varargin )
+function [ classMap, instanceMap ] = mergeMetadata( fileName, labelMap, varargin )
 
 % [ simplifiedMap ] = mergeMetadata( fileName, classesToMerge, ... )
 %
@@ -23,7 +23,7 @@ p.addRequired('fileName');
 p.addRequired('classesToMerge',@isstruct);
 p.addOptional('mode','mesh');
 
-p.parse(fileName,classesToMerge,varargin{:});
+p.parse(fileName,labelMap,varargin{:});
 mode = p.Results.mode;
 
 load(fileName);
@@ -41,19 +41,45 @@ end
 fid = fopen(textFile);
 mappings = textscan(fid,'%u %s');
 fclose(fid);
-nSimplified = length(classesToMerge);
+nSimplified = length(labelMap);
    
 classMap = zeros(size(map));
 instanceMap = zeros(size(map));
 instanceId=1;
 for i=1:nSimplified
 
-    loc = cellfun(@(x) isempty(x)==false, (strfind(lower(mappings{2}),lower(classesToMerge(i).name))));
-    classMap(ismember(map,mappings{1}(loc))) = classesToMerge(i).id;
+    % Find all the meshes that contain the class in their name
+    loc = cellfun(@(x) isempty(x)==false, (strfind(lower(mappings{2}),lower(labelMap(i).name))));
+    classMap(ismember(map,mappings{1}(loc))) = labelMap(i).id;
     
-    % We assume that there is only one instance per class !!!!!
-    instanceMap(ismember(map,mappings{1}(loc))) = instanceId;
-    instanceId = instanceId + 1;
+    meshNames = mappings{2}(loc);
+    meshIds = mappings{1}(loc);
+    
+    % Find all instances belonging to the category
+    posA = strfind(lower(meshNames),lower('_inst_'));
+    
+    if any(cellfun(@isempty,posA))
+        % We don't differentiate between instances
+        instanceMap(ismember(map,meshIds)) = instanceId;
+        instanceId = instanceId + 1;
+    else
+        % but if we find the keyword _inst_ then we have different
+        % instances
+        posB = cellfun(@(x,y) strfind(y(x(1)+length('_inst_'):end),'_'),posA,meshNames,'UniformOutput',false);
+        posB = cellfun(@(x) x(1),posB,'UniformOutput',false);
+        
+        instances = cellfun(@(x,y,z) str2double(z(x+length('_inst_'):(x+length('_inst_')+y-2))),posA,posB,meshNames);
+        instances = unique(instances);
+        nInstances = length(instances);
+        
+        for j=1:nInstances
+            loc = cellfun(@(x) isempty(strfind(lower(x),sprintf('_inst_%i',instances(j))))==false,meshNames);
+            
+            instanceMap(ismember(map,meshIds(loc))) = instanceId;
+            instanceId = instanceId + 1;
+        end
+    end
+    
 end
 
 classMap = uint8(classMap);
