@@ -14,32 +14,9 @@ constants;
 
 %% Simulation parameters
 
-cameraType = {'pinhole'}; %'dgauss.22deg.12.5mm'
-lensType = {'dgauss.22deg.6.0mm'};
-mode = {'radiance','mesh'};
-
-% Negative z is up.
-% Scene is about 200x200m, units are mm.
-% However we should specify meters, as they are automatically converted to
-% mm in remodellers.
-
-pixelSamples = 128;
-
-shadowDirection = [-0.5 -1 1];
-
-cameraDistance = [50];
-cameraOrientation = [0];
-cameraHeight = [-1.5];
-cameraPTR = [0, 0, 0];
-cameraDefocus = [0, -40];
-
-diffraction = {'false'};
-chromaticAberration = {'false'};
-
-fNumber = 2.8;
-filmDiag = [(1/6.4)*25.4];
-microlensDim = [0, 0];
-
+cameras = nnGenCameras('type',{'pinhole'},...
+                        'mode',{'radiance','mesh'},...
+                        'distance',50);
 
 %% Choose renderer options.
 hints.imageWidth = 640;
@@ -52,7 +29,7 @@ hints.batchRenderStrategy = RtbAssimpStrategy(hints);
 % Change the docker container
 hints.batchRenderStrategy.renderer.pbrt.dockerImage = 'vistalab/pbrt-v2-spectral';
 hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerMultipleObj;
-hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
+hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodellerV2;
 hints.batchRenderStrategy.converter.rewriteMeshData = false;
 
 resourceFolder = rtbWorkingFolder('folderName','resources',...
@@ -61,7 +38,8 @@ resourceFolder = rtbWorkingFolder('folderName','resources',...
 
 
 % Copy resources
-lensFiles = fullfile(lensDir,strcat(lensType,'.dat'));
+lensTypes = unique({cameras(:).lens});
+lensFiles = fullfile(lensDir,strcat(lensTypes,'.dat'));
 for i=1:length(lensFiles)
     copyfile(lensFiles{i},resourceFolder);
 end
@@ -102,16 +80,18 @@ carScene = mexximpCleanImport(parentSceneFile,...
     'flipWindingOrder',true,...
     'workingFolder',resourceFolder);
 
+shadowDirection = [-0.5 -1 1];
+
 carPosition = [-2.5 -2.5 0;
-                2    25 0];
+                1.5   25 0];
            
- carOrientation = [0 90];
+carOrientation = [0 90];
 
 scene = cityScene;
 for i=1:size(carPosition,1)
     objects(i).prefix = sprintf('car_inst_%i_',i); % Note that spaces or : are not allowed
-    objects(i).position = mat2str(carPosition(i,:));
-    objects(i).orientation = sprintf('%i',carOrientation(i));
+    objects(i).position = carPosition(i,:);
+    objects(i).orientation = carOrientation(i);
     objects(i).bndbox = mat2str(mexximpSceneBox(carScene));
     
     scene = mexximpCombineScenes(scene,carScene,...
@@ -120,70 +100,44 @@ for i=1:size(carPosition,1)
         'insertPrefix',objects(i).prefix);
 end
 
+% Create a second arrangement, where the second car is moved by 10 meters.
+objectArrangements = repmat({objects},[1 2]);
+objectArrangements{2}(2).position = [1.5 15 0];
 
-conditionsFile = fullfile(resourceFolder,sprintf('Conditions_city_%i_car_%i.txt',cityId,carId));
-objectMotionFile = fullfile(resourceFolder,'Movements.json');
-savejson('',objects,objectMotionFile);
+
+placedCameras = nnPlaceCameras(cameras,objectArrangements);
+
+
 
 %% Create a list of render conditions
-names = {'imageName','cameraType','lensType','mode','pixelSamples','filmDist','filmDiag','cameraPosition',...
-    'cameraLookAt','cameraPTR','microlensDim','fNumber','diffraction','chromaticAberration',...
-    'shadowDirection','objPosFile'};
+conditionsFile = fullfile(resourceFolder,'Conditions.txt');
+names = cat(1,'imageName',fieldnames(placedCameras{1}),'objPosFile','shadowDirection');
+values = cell(1,length(names));
 
-
-values = cell(1,numel(names));
 cntr = 1;
-
 sceneId=1;
-for ct=1:length(cameraType)
-    lensFile = fullfile(lensDir,sprintf('%s.dat',lensType{ct}));
+for m=1:length(objectArrangements)
+    objectArrangementFile = fullfile(resourceFolder,sprintf('Arrangement_%i.json',m));
+    savejson('',objectArrangements{m},objectArrangementFile);
     
-    [camPos, camLookAt, filmDist] = nnCameraPos(objects,cameraHeight,...
-        cameraDistance,...
-        cameraOrientation,...
-        cameraDefocus,...
-        lensFile);
+    currentCameras = placedCameras{m};
     
-    for p=1:size(camPos,1)
-        for s=1:size(shadowDirection,1)
-            for fn=1:length(fNumber)
-                for pan=1:size(cameraPTR,1)
-                    for mo=1:length(mode)
-                        for df=1:length(diffraction)
-                            
-                            
-                            if strcmp(cameraType{ct},'pinhole')
-                                currentFilmDistance = effectiveFocalLength(lensFile);
-                            else
-                                currentFilmDistance = filmDist(p);
-                            end
-                            
-                            fName = sprintf('%03i_city_%i_car_%i_%s_%s_%s_fN_%.2f',sceneId,cityId,carId,cameraType{ct},lensType{ct},mode{mo},fNumber(fn));
-                            
-                            values(cntr,1) = {fName};
-                            values(cntr,2) = cameraType(ct);
-                            values(cntr,3) = lensType(ct);
-                            values(cntr,4) = mode(mo);
-                            values(cntr,5) = num2cell(pixelSamples(ct),1);
-                            values(cntr,6) = num2cell(currentFilmDistance,1);
-                            values(cntr,7) = num2cell(filmDiag,1);
-                            values(cntr,8) = {mat2str(camPos(p,:))};
-                            values(cntr,9) = {mat2str(camLookAt(p,:))};
-                            values(cntr,10) = {mat2str(cameraPTR(pan,:))};
-                            values(cntr,11) = {mat2str(microlensDim)};
-                            values(cntr,12) = num2cell(fNumber(fn),1);
-                            values(cntr,13) = diffraction(df);
-                            values(cntr,14) = chromaticAberration(df);
-                            values(cntr,15) = {mat2str(shadowDirection(s,:))};
-                            values(cntr,16) = {objectMotionFile};
-                            
-                            cntr = cntr + 1;
-                            
-                        end
-                        sceneId = sceneId+1;
-                    end
-                end
+    for s=1:size(shadowDirection,1)
+        for c=1:length(placedCameras{m});
+            
+            fName = sprintf('%03i_%s',sceneId,currentCameras(c).mode);
+            
+            values(cntr,1) = {fName};
+            for i=2:(length(names)-2)
+                values(cntr,i) = {currentCameras(c).(names{i})};
             end
+            values(cntr,length(names)-1) = {objectArrangementFile};
+            values(cntr,length(names)) = {shadowDirection(s,:)};
+            
+            if strcmp(currentCameras(c).mode,'radiance')
+                sceneId = sceneId+1;
+            end
+            cntr = cntr + 1;
         end
     end
 end
@@ -214,14 +168,12 @@ for i=1:2:length(radianceDataFiles)
     
     
     %% Create an oi
-    oiParams.lensType = lensType{1};
-    oiParams.filmDistance = 10;
-    oiParams.filmDiag = 20;
+    oiParams.lensType = values{i,strcmp(names,'lens')};
+    oiParams.filmDistance = values{i,strcmp(names,'filmDistance')};
+    oiParams.filmDiag = values{i,strcmp(names,'filmDiagonal')};
     
-    [path, condname] = fileparts(radianceDataFiles{i});
-    
-    label = condname;
-    
+    [~, label] = fileparts(radianceDataFiles{i});
+        
     oi = buildOi(radianceData.multispectralImage, [], oiParams);
     oi = oiSet(oi,'name',label);
     

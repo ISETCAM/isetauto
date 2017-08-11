@@ -19,14 +19,13 @@ labelMap(1).id = 7;
 
 % mode = 'fullResRGB';
 % mode = 'linearRGB';
-mode = 'rawRGB';
-% mode = 'noise_100';
-% mode = 'sRGB';
+% mode = 'rawRGB';
+mode = 'sRGB';
 
 dataDir = fullfile('/','share','wandell','data','NN_Camera_Generalization','Renderings',recipe);
 renderDir = fullfile('renderings','PBRTCloud');
 
-destDir = fullfile('/','scratch','Datasets',recipe);
+destDir = fullfile('/','scratch','Datasets',sprintf('%s-TEST',recipe));
 
 % Prepare the directory structure
 xVal = {'trainval','test'};
@@ -60,13 +59,6 @@ for i=1:length(labelMap)
 end
 fclose(fid);
 
-if strfind(mode,'noise');
-    loc = strfind(mode,'_');
-    lightLevel = 1/str2double(mode(loc+1:end));
-else
-    lightLevel = 1;
-end
-
 %%
 
 fileNames = dir(fullfile(dataDir,renderDir,'*radiance*.mat'));
@@ -82,7 +74,7 @@ for f=1:nFiles
     
     outputFileName = sprintf('%06i',cntr);
     outputXmlFileName = sprintf('%s.xml',outputFileName);
-    outputJpegFileName = sprintf('%s.jpg',outputFileName);
+    outputJpegFileName = sprintf('%s.png',outputFileName);
     
     inputFileName = fileNames(shuffling(f)).name;
     
@@ -102,7 +94,7 @@ for f=1:nFiles
     
     oi = BuildOI(radianceData.multispectralImage, [], oiParams);
     oi = oiSet(oi,'name',name);
-    oi = oiAdjustIlluminance(oi,100*lightLevel,'mean');
+    oi = oiAdjustIlluminance(oi,1000,'mean');
     
     ieAddObject(oi);
     % oiWindow();
@@ -111,7 +103,7 @@ for f=1:nFiles
     sensor = sensorSet(sensor,'name',name);
     sensor = sensorSet(sensor,'size',oiGet(oi,'size'));
     sensor = sensorSet(sensor,'pixel widthandheight',[oiGet(oi,'hres'), oiGet(oi,'wres')]);
-    sensor = sensorSet(sensor,'analog gain',1*lightLevel);
+    sensor = sensorSet(sensor,'analog gain',1);
     expTime = autoExposure(oi,sensor,1);
     sensor = sensorSet(sensor,'exposure time',expTime);
     sensor = sensorSet(sensor,'quantizationmethod','8 bit');
@@ -129,21 +121,18 @@ for f=1:nFiles
     ieAddObject(ip);
     % ipWindow();
     
-    if lightLevel==1
-        switch mode
-            case 'sRGB'
-                img = ipGet(ip,'data srgb');
-            case 'fullResRGB'
-                img = oiGet(oi,'rgb image');
-            case 'linearRGB'
-                img = uint8(ipGet(ip,'sensor channels'));
-            case 'rawRGB'
-                img = uint8(ipGet(ip,'sensor mosaic'));
-                img = repmat(img,[1 1 3]);
-        end
-    else
-        img = ipGet(ip,'data srgb');
+    switch mode
+        case 'sRGB'
+            img = ipGet(ip,'data srgb');
+        case 'fullResRGB'
+            img = oiGet(oi,'rgb image');
+        case 'linearRGB'
+            img = uint8(ipGet(ip,'sensor channels'));
+        case 'rawRGB'
+            img = uint8(ipGet(ip,'sensor mosaic'));
+            img = repmat(img,[1 1 3]);
     end
+    
         
     
     %% Labels

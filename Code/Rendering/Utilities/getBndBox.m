@@ -23,7 +23,14 @@ for i=1:length(instanceIDs)
    classId = labelImage(indicator);
    classId = classId(1);
    
-   objects{objectId}.name = labelMap([labelMap(:).id] == classId).name;
+   cond = [labelMap(:).id] == classId;
+   
+   if sum(cond) == 0
+       % We're not interested in labeling this particular object.
+       continue; 
+   end
+   
+   objects{objectId}.name = labelMap(cond).name;
    objects{objectId}.bndbox.xmin = min(xIndices);
    objects{objectId}.bndbox.xmax = max(xIndices);
    objects{objectId}.bndbox.ymin = min(yIndices);

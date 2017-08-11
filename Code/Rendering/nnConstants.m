@@ -22,8 +22,10 @@ car2directory = {'MercedesCClass',...
                  'Ferarri599'};
 %% Asset and lens directories
 
+global assetDir            
 assetDir = fullfile('/','share','wandell','data','NN_Camera_Generalization','Assets');
 
+global lensDir;
 lensDir = fullfile(parentPath,'Parameters');
 
 %%

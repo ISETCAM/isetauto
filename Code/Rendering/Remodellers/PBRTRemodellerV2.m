@@ -1,12 +1,12 @@
-function [ nativeScene ] = PBRTRemodeller( parentScene, nativeScene, mappings, names, conditionValues, conditionNumbers )
+function [ nativeScene ] = PBRTRemodellerV2( parentScene, nativeScene, mappings, names, conditionValues, conditionNumbers )
 
-cameraType = rtbGetNamedValue(names,conditionValues,'cameraType',[]);
-lensType = rtbGetNamedValue(names,conditionValues,'lensType',[]);
+cameraType = rtbGetNamedValue(names,conditionValues,'type',[]);
+lensType = rtbGetNamedValue(names,conditionValues,'lens',[]);
 mode = rtbGetNamedValue(names,conditionValues,'mode',[]);
 pixelSamples = rtbGetNamedNumericValue(names,conditionValues,'pixelSamples',[]);
-filmDist = rtbGetNamedNumericValue(names,conditionValues,'filmDist',[]);
-filmDiag = rtbGetNamedNumericValue(names,conditionValues,'filmDiag',[]);
-microlensDim = rtbGetNamedNumericValue(names,conditionValues,'microlensDim',[0, 0]);
+filmDist = rtbGetNamedNumericValue(names,conditionValues,'filmDistance',[]);
+filmDiag = rtbGetNamedNumericValue(names,conditionValues,'filmDiagonal',[]);
+microlensDim = rtbGetNamedNumericValue(names,conditionValues,'microlens',[0, 0]);
 fNumber = rtbGetNamedNumericValue(names,conditionValues,'fNumber',[]);
 fog = 0;
 diffraction = rtbGetNamedValue(names,conditionValues,'diffraction','true');
