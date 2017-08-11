@@ -34,15 +34,18 @@ hints.copyResources = 1;                   % Is this a logical?? (BW)
 hints.isParallel = false;
 
 % Change the docker container
+hints.tokenPath = p.Results.tokenPath; 
 hints.batchRenderStrategy = RtbAssimpStrategy(hints);
 
 hints.batchRenderStrategy.remodelPerConditionAfterFunction = @MexximpRemodellerMoveCar;
 hints.batchRenderStrategy.converter = RtbAssimpPBRTConverter(hints);
 hints.batchRenderStrategy.converter.remodelAfterMappingsFunction = @PBRTRemodeller;
 hints.batchRenderStrategy.converter.rewriteMeshData = false;
+
 if p.Results.gcloud
     % Google cloud run
-    hints.tokenPath = p.Results.tokenPath; 
+    % Odd that is has to be earlier
+    %  hints.tokenPath = p.Results.tokenPath;
     hints.batchRenderStrategy.renderer = RtbPBRTCloudRenderer(hints);
     if isempty(p.Results.dockerImage)
         dockerImage = 'gcr.io/primal-surfer-140120/pbrt-v2-spectral-gcloud';
@@ -53,7 +56,7 @@ else
     % Local run
     hints.batchRenderStrategy.renderer = RtbPBRTRenderer(hints);
     if isempty(p.Results.dockerImage)
-        dockerImage = 'pbrt-v2-spectral';
+        dockerImage = 'vistalab/pbrt-v2-spectral';
     end
     hints.batchRenderStrategy.renderer.pbrt.dockerImage = dockerImage;
 end

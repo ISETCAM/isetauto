@@ -34,12 +34,16 @@ ieInit;
 nnConstants;
 
 tokenPath = '/home/wandell/gcloud/primalsurfer-token.json'; % Path to a storage admin access key 
-
-% Small image size for debugging
+gcloud = true;
+% Should have a validity check.  Surprising that we have the tokenPath early in
+% the ordering within this nnHintsInit routine
+% Small image size for debugging.
 hints = nnHintsInit('imageWidth',160,'imageHeight',120,...
     'recipeName','Car-Different-Lenses',...
     'tokenPath',tokenPath,...
-    'gcloud',false);
+    'gcloud',gcloud);
+
+rtbCloudInit(hints);
 
 % Smaller for debugging
 %% Simulation parameters
@@ -282,48 +286,50 @@ for cityId=1:maxCities
                 
                 fprintf('Batch rendering %d files\n',length(nativeSceneFiles));
                 radianceDataFiles = rtbBatchRender(nativeSceneFiles, 'hints', hints);
-                
-                % We aren't saving the radianceDataFiles for all the conditions.
-                % This means we have to rerun too many times.
-                %
-                % Also, we don't have the true irradiance level, just a
-                % noise-free irradiance.  So, we should aim to set the
-                % irradiance to a reasonable level here.
-                %
-                % load('radianceDataFiles');
-                fprintf('Creating OI\n');
-                for i=1:length(radianceDataFiles)
-                    % chdir(fullfile(nnGenRootPath,'local'));
-                    % save('radianceDataFiles','radianceDataFiles');
-                    
-                    radianceData = load(radianceDataFiles{i});
-                    
-                    % Create an oi and set the parameters
-                    clear oiParams;
-                    oiParams.optics_name = lensType{lt};
-                    oiParams.optics_model = 'diffractionlimited';
-                    oiParams.fov = fov;
-                    switch ieParamFormat(lensType{lt})
-                        case 'pinhole'
-                            oiParams.optics_fnumber = 999;
-                        otherwise
-                            oiParams.optics_fnumber = fNumber(lt);
-                    end
-                    oiParams.optics_focalLength = filmDistanceVec(lt)*1e-3; % In meters
-                    [~, label] = fileparts(radianceDataFiles{i});
-                    oiParams.name = label;
-                    
-                    oi = buildOi(radianceData.multispectralImage, [], oiParams);
-                    
-                    oi = oiAdjustIlluminance(oi,meanIlluminance);
-                    
-                    ieAddObject(oi);
-                    oiWindow;
-                    
-                end
             end
         end
     end
+end
+
+if gcloud, radianceDataFiles = rtbCloudDownload(hints); end
+
+% We aren't saving the radianceDataFiles for all the conditions.
+% This means we have to rerun too many times.
+%
+% Also, we don't have the true irradiance level, just a
+% noise-free irradiance.  So, we should aim to set the
+% irradiance to a reasonable level here.
+%
+% load('radianceDataFiles');
+fprintf('Creating OI\n');
+for i=1:length(radianceDataFiles)
+    % chdir(fullfile(nnGenRootPath,'local'));
+    % save('radianceDataFiles','radianceDataFiles');
+    
+    radianceData = load(radianceDataFiles{i});
+    
+    % Create an oi and set the parameters
+    clear oiParams;
+    oiParams.optics_name = lensType{lt};
+    oiParams.optics_model = 'diffractionlimited';
+    oiParams.fov = fov;
+    switch ieParamFormat(lensType{lt})
+        case 'pinhole'
+            oiParams.optics_fnumber = 999;
+        otherwise
+            oiParams.optics_fnumber = fNumber(lt);
+    end
+    oiParams.optics_focalLength = filmDistanceVec(lt)*1e-3; % In meters
+    [~, label] = fileparts(radianceDataFiles{i});
+    oiParams.name = label;
+    
+    oi = buildOi(radianceData.multispectralImage, [], oiParams);
+    
+    oi = oiAdjustIlluminance(oi,meanIlluminance);
+    
+    ieAddObject(oi);
+    oiWindow;
+    
 end
 
 %% Save out the oi if you like
