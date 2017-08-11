@@ -33,8 +33,13 @@ ieInit;
 % Maybe should be called nnDirectories
 nnConstants;
 
+tokenPath = '/home/wandell/gcloud/primalsurfer-token.json'; % Path to a storage admin access key 
+
 % Small image size for debugging
-hints = nnHintsInit('imageWidth',640,'imageHeight',480);
+hints = nnHintsInit('imageWidth',160,'imageHeight',120,...
+    'recipeName','Car-Different-Lenses',...
+    'tokenPath',tokenPath,...
+    'gcloud',false);
 
 % Smaller for debugging
 %% Simulation parameters
@@ -53,7 +58,7 @@ microlens = {[0,0]};
 mode = {'radiance'};
 
 fNumber  = 2.8;
-fov = 45;                  % Deg
+fov = 22.5;                  % Deg
 meanIlluminance = 5;       % Lux
 
 filmDiag = (1/3.6)*25.4;   % Millimeters

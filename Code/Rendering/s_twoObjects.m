@@ -4,13 +4,16 @@
 
 %% Scene description
 
-% Henryk Blasinski
-close all;
-clear all;
-clc;
-
+% Initialize ISET related variables
 ieInit;
-constants;
+
+% Sets up related to the car renderings and local directory tree
+% Maybe should be called nnDirectories
+nnConstants;
+
+% Small image size for debugging
+hints = nnHintsInit('imageWidth',640,'imageHeight',480);
+
 
 %% Simulation parameters
 
